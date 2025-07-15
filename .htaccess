@@ -1,0 +1,14 @@
+# Deny access to sensitive directories
+<Directory ~ "^/(data|backups|node_modules|\.git)">
+    Order deny,allow
+    Deny from all
+</Directory>
+
+# Prevent directory listing
+Options -Indexes
+
+# Deny access to sensitive files
+<FilesMatch "\.(env|db|sqlite|log|bak|backup)$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
