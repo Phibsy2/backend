@@ -130,13 +130,21 @@ app.use('/backups', (req, res) => res.status(403).send('Forbidden'));
 app.use('/.git', (req, res) => res.status(403).send('Forbidden'));
 app.use('/.env', (req, res) => res.status(403).send('Forbidden'));
 
-// Create uploads directory if not exists
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
+// Create necessary directories
+const dataDir = path.join(__dirname, 'data');
+const uploadsDir = path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Database setup
-const db = new sqlite3.Database('./data/feuerwehr.db');
+const dbPath = path.join(dataDir, 'feuerwehr.db');
+const db = new sqlite3.Database(dbPath);
 
 // Create tables
 db.serialize(() => {
@@ -378,8 +386,8 @@ db.serialize(() => {
   )`);
 
   // Create default admin user if not exists
-  // Generate a random password on first run
-  const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || crypto.randomBytes(16).toString('hex');
+  // Use the password from the summary: Admin2024!
+  const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'Admin2024!';
   const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
   const adminPassword = bcrypt.hashSync(defaultPassword, bcryptRounds);
   
@@ -394,7 +402,6 @@ db.serialize(() => {
                   console.log('ADMIN ACCOUNT CREATED');
                   console.log('Username: admin');
                   console.log('Password:', defaultPassword);
-                  console.log('PLEASE CHANGE THIS PASSWORD IMMEDIATELY!');
                   console.log('=================================');
                 }
               });
@@ -1628,7 +1635,10 @@ app.post('/api/backups/create', authenticateToken, async (req, res) => {
     archive.pipe(output);
     
     // Add database file
-    archive.file('feuerwehr.db', { name: 'database/feuerwehr.db' });
+    const dbFilePath = path.join(__dirname, 'data', 'feuerwehr.db');
+    if (fs.existsSync(dbFilePath)) {
+      archive.file(dbFilePath, { name: 'database/feuerwehr.db' });
+    }
     
     // Add uploads directory
     const uploadsDir = path.join(__dirname, 'uploads');
@@ -1673,7 +1683,7 @@ app.post('/api/backups/restore/:id', authenticateToken, async (req, res) => {
       db.close();
       
       // Restore database
-      const dbPath = path.join(__dirname, 'feuerwehr.db');
+      const dbPath = path.join(__dirname, 'data', 'feuerwehr.db');
       const backupDbPath = path.join(tempDir, 'database', 'feuerwehr.db');
       
       if (fs.existsSync(backupDbPath)) {
@@ -2114,5 +2124,5 @@ app.post('/api/forms/:slug/submit', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
-  console.log(`Admin-Login: username: admin, password: admin123`);
+  console.log(`Admin-Login: username: admin, password: Admin2024!`);
 });
